@@ -9,8 +9,7 @@ ID int auto_increment primary key,
 nombre varchar(25) not null,
 apellido varchar(25) not null,
 telefono varchar(20) not null,
-email varchar(100),
-ID_domicilio int not null
+email varchar(100)
 ) comment 'Guarda los datos de los clientes.';
 
 create table venta (
@@ -54,9 +53,9 @@ create table instalacion (
 ID int auto_increment primary key,
 fecha datetime default(current_timestamp),
 tipo varchar(15) not null,
-ID_ubicacion int not null,
+ID_ubicacion int unique not null,
 ID_cliente int not null,
-ID_venta int not null
+ID_venta int unique not null
 ) comment 'Guarda los datos de las instalaciones que realizo la empresa.';
 
 create table tecnico (
@@ -64,8 +63,7 @@ ID int auto_increment primary key,
 nombre varchar(25) not null,
 apellido varchar(25) not null,
 telefono varchar(20) not null,
-email varchar(100),
-ID_domicilio int not null
+email varchar(100)
 ) comment 'Guarda los datos de los técnicos que contrata la empresa para realizar las instalaciones y servicios técnicos.';
 
 create table instalacion_tecnico (
@@ -79,16 +77,18 @@ ID int auto_increment primary key,
 fecha datetime default(current_timestamp),
 tipo varchar(15) not null,
 costo decimal(14,2) not null,
+ID_ubicacion int unique not null,
 ID_tecnico int not null,
-ID_cliente int not null,
-ID_ubicacion int not null
+ID_cliente int not null
 ) comment 'Guarda los datos de los servicios técnicos que realizo la empresa';
 
 create table domicilio (
 ID int auto_increment primary key,
-calle varchar(25) not null,
+calle varchar(30) not null,
 numero varchar(5) not null,
-ID_localidad int not null
+ID_localidad int not null,
+ID_cliente int,
+ID_tecnico int
 ) comment 'Guarda los datos de los domicilios de los clientes y técnicos.';
 
 create table ubicacion (
@@ -100,14 +100,16 @@ ID_localidad int not null
 
 create table localidad (
 ID int auto_increment primary key,
-nombre varchar(50) not null
+nombre varchar(50) not null,
+ID_provincia int not null
 ) comment 'Guarda el nombre de las localidades.';
 
--- Asignacion de foreigns keys
+create table provincia (
+ID int auto_increment primary key,
+nombre varchar(50) not null
+) comment 'Guarda el nombre de las provincias de Argentina.';
 
-alter table cliente
-add constraint fk_cliente_domicilio
-foreign key (ID_domicilio) references domicilio(ID);
+-- Asignacion de Foreigns Keys
 
 alter table venta
 add constraint fk_venta_producto
@@ -141,10 +143,6 @@ alter table instalacion
 add constraint fk_instalacion_venta
 foreign key (ID_venta) references venta(ID);
 
-alter table tecnico
-add constraint fk_tecnico_domicilio
-foreign key (ID_domicilio) references domicilio(ID);
-
 alter table instalacion_tecnico
 add constraint fk_instec_instalacion
 foreign key (ID_instalacion) references instalacion(ID);
@@ -169,68 +167,121 @@ alter table domicilio
 add constraint fk_domicilio_localidad
 foreign key (ID_localidad) references localidad(ID);
 
+alter table domicilio
+add constraint fk_domicilio_cliente
+foreign key (ID_cliente) references cliente(ID);
+
+alter table domicilio
+add constraint fk_domicilio_tecnico
+foreign key (ID_tecnico) references tecnico(ID);
+
 alter table ubicacion
 add constraint fk_ubicacion_localidad
 foreign key (ID_localidad) references localidad(ID);
 
+alter table localidad
+add constraint fk_localidad_provincia
+foreign key (ID_provincia) references provincia(ID);
+
 -- Insertado de datos en las tablas
 
-INSERT INTO localidad (nombre) VALUES
-('Cordoba Capital'),
-('Alta Gracia'),
-('Anisacate');
+insert into cliente (nombre, apellido, telefono, email) values
+('Juan', 'Pérez', '555-1234', 'juan.perez@example.com'),
+('Ana', 'Gómez', '555-5678', null),
+('Luis', 'Martínez', '555-8765', null);
 
-INSERT INTO domicilio (calle, numero, ID_localidad) VALUES
-('Av. Colon', '123', 1),
-('Bv. Granaderos', '456', 2),
-('Santa Fe', '789', 3);
+insert into tecnico (nombre, apellido, telefono, email) values
+('Juan', 'Martínez', '111222333', 'juan.martinez@example.com'),
+('Ana', 'Fernández', '444555666', null),
+('Pablo', 'García', '777888999', 'pablo.garcia@example.com');
 
-INSERT INTO ubicacion (calle, numero, ID_localidad) VALUES
-('La Paz', '101', 1),
-('Av. Libertad', '202', 2),
-('Jujuy', '303', 3);
+insert into proveedor (nombre, email, telefono, paginaWeb) values
+('SmartGadgets', 'support@smartgadgets.com', '555-8765', 'www.smartgadgets.com'),
+('CameraWorld', 'contact@cameraworld.com', '555-6789', 'www.cameraworld.com'),
+('AudioPro', 'service@audiopro.com', '555-3456', null);
 
-INSERT INTO cliente (nombre, apellido, telefono, ID_domicilio) VALUES
-('Carlos', 'Pérez', '123456789', 1),
-('María', 'Gómez', '987654321', 2),
-('Luis', 'Rodríguez', '456789123', 3);
-
-INSERT INTO proveedor (nombre, email, telefono) VALUES
-('Distribuidora Tech', 'ventas@distribuidoratech.com', '5551234567'),
-('Logitech Partners', 'contacto@logitechpartners.com', '5559876543'),
-('HP Supplies', 'info@hpsupplies.com', '5556789123');
-
-INSERT INTO producto (nombre, marca, modelo, precio, stock, ID_proveedor) VALUES
-('Alarma', 'Ajax', 'Inspiron 15', 499.99, 10, 1),
+insert into producto (nombre, marca, modelo, precio, stock, ID_proveedor) values
+('Alarma', 'Ajax', 'Inspiron 15', 499.99, 10, 3),
 ('Camara', 'IMOU', 'M170', 15.99, 50, 2),
-('Sensor', 'DSC', 'K500', 19.99, 30, 3);
+('Sensor', 'DSC', 'K500', 19.99, 30, 1);
 
-INSERT INTO compra (precioUnitario, cantidad, total, ID_producto, ID_proveedor) VALUES
+insert into compra (precioUnitario, cantidad, total, ID_producto, ID_proveedor) values
 (399.99, 5, 1999.95, 1, 1),
 (10.00, 100, 1000.00, 2, 2),
 (18.00, 40, 720.00, 3, 3);
 
-INSERT INTO venta (cantidad, total, ID_producto, ID_cliente) VALUES
+insert into venta (cantidad, total, ID_producto, ID_cliente) values
 (2, 999.99, 1, 1),
 (1, 15.99, 2, 2),
 (3, 59.97, 3, 3);
 
-INSERT INTO instalacion (tipo, ID_ubicacion, ID_cliente, ID_venta) VALUES
+insert into provincia (nombre) values
+('Ciudad Autonoma de Buenos Aires'),
+('Buenos Aires'),
+('Catamarca'),
+('Chaco'),
+('Chubut'),
+('Córdoba'),
+('Corrientes'),
+('Entre Ríos'),
+('Formosa'),
+('Jujuy'),
+('La Pampa'),
+('La Rioja'),
+('Mendoza'),
+('Misiones'),
+('Neuquén'),
+('Río Negro'),
+('Salta'),
+('San Juan'),
+('San Luis'),
+('Santa Cruz'),
+('Santa Fe'),
+('Santiago del Estero'),
+('Tierra del Fuego'),
+('Tucumán');
+
+insert into localidad (nombre, ID_provincia) values
+('Cordoba Capital', 6),
+('Palermo', 1),
+('San Carlos de Bariloche', 16),
+('Ciudad de Salta', 17),
+('San Rafael', 13),
+('San Miguel de Tucuman', 24),
+('Mendoza Capital', 13),
+('Concepcion', 24),
+('Pilar', 2),
+('Posadas', 14),
+('Carlos Paz', 6),
+('Alta Gracia', 6);
+
+insert into domicilio (calle, numero, ID_localidad, ID_cliente, ID_tecnico) values
+('Av. Libertad', '123', 1, 1, null),
+('Egipto', '456', 2, 2, null),
+('Besuri', '789', 3, 3, null),
+('Bv. Constitución', '101', 4, null, 1),
+('Esperanza', '202', 5, null, 2),
+('Pablo Slovski', '303', 6, null, 3);
+
+insert into ubicacion (calle, numero, ID_localidad) values
+('Avenida de la Paz', '111', 7),
+('Calle de la Alegría', '222', 8),
+('Calle del Mar', '333', 9),
+('Ronda Norte', '444', 10),
+('Calle del Río', '555', 11),
+('Avenida del Parque', '666', 12);
+
+insert into instalacion (tipo, ID_ubicacion, ID_cliente, ID_venta) values
 ('Supermercado', 1, 1, 1),
 ('Hogar', 2, 2, 2),
 ('Comercio', 3, 3, 3);
 
-INSERT INTO tecnico (nombre, apellido, telefono, email, ID_domicilio) VALUES
-('Juan', 'Martínez', '111222333', 'juan.martinez@example.com', 1),
-('Ana', 'Fernández', '444555666', null, 2),
-('Pablo', 'García', '777888999', 'pablo.garcia@example.com', 3);
-
-INSERT INTO instalacion_tecnico (ID_instalacion, ID_tecnico) VALUES
+insert into instalacion_tecnico (ID_instalacion, ID_tecnico) values
 (1, 1),
 (2, 2),
 (3, 3);
 
-INSERT INTO servicioTecnico (tipo, costo, ID_tecnico, ID_cliente, ID_ubicacion) VALUES
-('Reparación', 50.00, 1, 1, 1),
-('Mantenimiento', 120.00, 2, 2, 2),
-('Cambio', 200.00, 3, 3, 3);
+insert into servicioTecnico (tipo, costo, ID_ubicacion, ID_tecnico, ID_cliente) values
+('Reparación', 50.00, 4, 1, 1),
+('Mantenimiento', 120.00, 5, 2, 2),
+('Cambio', 200.00, 6, 3, 3);
