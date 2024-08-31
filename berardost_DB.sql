@@ -84,7 +84,7 @@ ID_cliente int not null
 
 create table domicilio (
 ID int auto_increment primary key,
-calle varchar(30) not null,
+calle varchar(50) not null,
 numero varchar(5) not null,
 ID_localidad int not null,
 ID_cliente int,
@@ -93,7 +93,7 @@ ID_tecnico int
 
 create table ubicacion (
 ID int auto_increment primary key,
-calle varchar(25) not null,
+calle varchar(50) not null,
 numero varchar(5) not null,
 ID_localidad int not null
 ) comment 'Guarda los datos de las ubicaciones de las instalaciones y servicios técnicos.';
