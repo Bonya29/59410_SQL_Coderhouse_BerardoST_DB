@@ -1,5 +1,5 @@
 -- Creacion de la base de datos --------------------------------------------------------------------------------------
-drop database if exists berardost;
+-- drop database if exists berardost;
 create database berardost;
 use berardost;
 
