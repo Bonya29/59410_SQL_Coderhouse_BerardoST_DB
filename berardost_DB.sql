@@ -1,7 +1,31 @@
 -- Creacion de la base de datos --------------------------------------------------------------------------------------
--- drop database if exists berardost;
+drop database if exists berardost;
 create database berardost;
 use berardost;
+
+-- Creacion de roles y usuarios --------------------------------------------------------------------------------------
+
+create role if not exists 'Desarrollador', 'Administrador', 'Tecnico', 'Ayudante', 'Auditor';
+grant all on berardost.* to 'Desarrollador', 'Administrador';
+grant select, insert, update on berardost.* to 'Tecnico';
+grant select, create on berardost.* to 'Ayudante';
+grant select on berardost.* to 'Auditor';
+
+create user if not exists 'dev1'@'%' identified by 'qwer1234';
+create user if not exists 'dev2'@'%' identified by 'asdf1234';
+create user if not exists 'admin1'@'%' identified by 'zxcv1234';
+create user if not exists 'admin2'@'%' identified by '12341234';
+create user if not exists 'tec1'@'%' identified by '1234qwer';
+create user if not exists 'tec2'@'%' identified by '1234asdf';
+create user if not exists 'supp1'@'%' identified by '1234zxcv';
+create user if not exists 'supp2'@'%' identified by 'qaz123';
+create user if not exists 'aud1'@'%' identified by '123qaz';
+
+grant Desarrollador to dev1@'%', dev2@'%';
+grant Administrador to admin1@'%', admin2@'%';
+grant Tecnico to tec1@'%', tec2@'%';
+grant Ayudante to supp1@'%', supp2@'%';
+grant Auditor to aud1@'%';
 
 -- Creacion de las tablas de la base de datos --------------------------------------------------------------------------------------
 
@@ -67,6 +91,19 @@ total decimal(14,2) not null,
 ID_Producto int, constraint fk_venta_producto foreign key(ID_Producto) references producto(ID),
 ID_Cliente int, constraint fk_venta_cliente foreign key(ID_Cliente) references cliente(ID)
 ) comment 'Guarda los datos de las compras que realizan los clientes.';
+
+create table registroStock (
+ID int auto_increment primary key,
+usuario_accion varchar(50) not null,
+fecha datetime default(current_timestamp),
+tipo enum('Compra', 'Venta') not null,
+cantidad int not null,
+ID_Producto int, constraint fk_registroStock_producto foreign key(ID_Producto) references producto(ID),
+stock_anterior int not null,
+stock_actual int not null,
+ID_Compra int, foreign key(ID_Compra) references compra(ID),
+ID_Venta int, foreign key(ID_Venta) references venta(ID)
+) comment 'Registra cuando entra y sale stock productos con las compras y ventas realizadas.';
 
 create table instalacion (
 ID int auto_increment primary key,
@@ -350,10 +387,18 @@ cantidad int,
 total decimal(14,2))
 begin
 declare venta boolean;
+declare ID_Venta int;
+declare stock_anterior int;
+declare stock_actual int;
 set venta = true;
+select stock into stock_anterior from producto where producto.ID = ID_Producto;
 insert into venta (ID_Cliente, ID_Producto, cantidad, total)
 values (ID_Cliente, ID_Producto, cantidad, total);
+set ID_Venta = last_insert_id();
 call sp_update_stock_producto(ID_Producto, cantidad, venta);
+select stock into stock_actual from producto where producto.ID = ID_Producto;
+insert into registroStock (usuario_accion, tipo, cantidad, ID_producto, stock_anterior, stock_actual, ID_Venta)
+values (current_user, 2, cantidad, ID_Producto, stock_anterior, stock_actual, ID_Venta);
 end//
 
 create procedure sp_registrar_compra(
@@ -364,10 +409,18 @@ cantidad int,
 total decimal(14,2))
 begin
 declare venta boolean;
+declare ID_Compra int;
+declare stock_anterior int;
+declare stock_actual int;
 set venta = false;
+select stock into stock_anterior from producto where producto.ID = ID_Producto;
 insert into compra(ID_Proveedor, ID_Producto, precioUnitario, cantidad, total)
 values (ID_Proveedor, ID_Producto, precioUnitario, cantidad, total);
+set ID_Compra = last_insert_id();
 call sp_update_stock_producto(ID_Producto, cantidad, venta);
+select stock into stock_actual from producto where producto.ID = ID_Producto;
+insert into registroStock (usuario_accion, tipo, cantidad, ID_producto, stock_anterior, stock_actual, ID_Compra)
+values (current_user, 1, cantidad, ID_Producto, stock_anterior, stock_actual, ID_Compra);
 end//
 
 -- Creacion de los triggers --------------------------------------------------------------------------------------
@@ -416,25 +469,27 @@ delimiter ;
 
 -- Uso de las funciones --------------------------------------------------------------------------------------
 
--- select fn_calcular_total_producto(1, 2) as total_producto; -- (ID_Producto, cantidad)
--- select fn_calcular_ganancia(1, 2) as ganancia; -- (ID_Producto, cantidad)
+-- select fn_calcular_total_producto(1, 2) as total_producto; -- Datos Ingresados: (ID_Producto, cantidad)
+-- select fn_calcular_ganancia(1, 2) as ganancia; -- Datos Ingresados: (ID_Producto, cantidad)
 -- select * from producto where ID = 1;
 
 -- Uso de los procedimientos almacenados --------------------------------------------------------------------------------------
 
--- call sp_update_stock_producto(1, 1, true); -- (ID_Producto, cantidad, venta?)
+-- call sp_update_stock_producto(1, 1, true); -- Datos Ingresados: (ID_Producto, cantidad, venta?)
 -- select * from producto where ID = 1;
 
--- call sp_update_stock_producto(2, 1, false); -- (ID_Producto, cantidad, venta?)
+-- call sp_update_stock_producto(2, 1, false); -- Datos Ingresados: (ID_Producto, cantidad, venta?)
 -- select * from producto where ID = 2;
 
--- call sp_registrar_venta(1, 1, 3, 24001.50); -- (ID_Cliente, ID_Producto, cantidad, total)
+-- call sp_registrar_venta(1, 1, 3, 24001.50); -- Datos Ingresados: (ID_Cliente, ID_Producto, cantidad, total)
 -- select * from producto where ID = 1;
 -- select * from venta;
+-- select * from registroStock;
 
 -- call sp_registrar_compra(1, 1, 7500.50, 3, 22501.50); -- (ID_Proveedor, ID_Producto, precioUnitario, cantidad, total)
 -- select * from producto where ID = 1;
 -- select * from compra;
+-- select * from registroStock;
 
 -- Ejemplo del trigger tg_validar_stock_antes_venta --------------------------------------------------------------------------------------
 -- call sp_registrar_venta (1, 1, 15, 128008);
@@ -449,3 +504,22 @@ insert into instalacion_tecnico (ID_Instalacion, ID_Tecnico) values (11, 5);
 
 -- Ejemplo del trigger tg_validar_provincia_antes_servicio --------------------------------------------------------------------------------------
 -- insert into servicioTecnico (tipo, costo, calle, numero, ID_Localidad, ID_Tecnico, ID_Cliente) values (1, 3500.50, 'Calle Rivadavia', '101', 10, 3, 1);
+
+-- Ver Usuarios y Roles --------------------------------------------------------------------------------------
+/*
+select * from mysql.user;
+show grants for 'Desarrollador';
+show grants for 'Administrador';
+show grants for 'Tecnico';
+show grants for 'Ayudante';
+show grants for 'Auditor';
+show grants for 'dev1'@'%';
+show grants for 'dev2'@'%';
+show grants for 'admin1'@'%';
+show grants for 'admin2'@'%';
+show grants for 'tec1'@'%';
+show grants for 'tec2'@'%';
+show grants for 'supp1'@'%';
+show grants for 'supp2'@'%';
+show grants for 'aud1'@'%';
+*/
